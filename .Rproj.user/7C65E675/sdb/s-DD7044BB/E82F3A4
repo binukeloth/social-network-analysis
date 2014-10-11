@@ -1,0 +1,15 @@
+{
+    "contents" : "library(shiny)\nlibrary(datasets)\nsource(\"network-analysis.R\");\n\n# Define server logic required \n# Load data set and to summarize and view the selected dataset\n\nshinyServer(function(input, output) \n{\n  # input$file1 will be NULL initially. After the user selects\n  # and uploads a file, it will be a data frame with 'name',\n  # 'size', 'type', and 'datapath' columns. The 'datapath'\n  # column will contain the local filenames where the data can\n  # be found.\n  \n  # Server side for load data tab\n  # --------------------------\n  \n  # Read the requested dataset\t\n  \n  datasetInput <- reactive({\n    dataFile <- input$file1\n    \n    if (is.null(dataFile))\n      return(NULL)\t\t\n    \n    loadData(dataFile$datapath, input$header, input$sep);\n  })\n  \n  \n  # Show the first \"n\" observations\n  output$view <- renderTable({\n    dataset = datasetInput();    \n    head(dataset, n = input$obs)\n  })\n  \n  # Server side for nw stats tab\n  # --------------------------\n  \n  output$condition = renderText ({ \n    input$cond;\n  })\n  \n  computeNW = reactive ({    \n    dataset = datasetInput();\n    \n    if (is.null(dataset))\n      return(NULL)    \n   \n    computeNWProp(dataset, NULL);\n  })\n  \n  output$nwPlot <- renderPlot({    \n    g = computeNW();    \n    \n    plotGraph(g$graph);    \n  })\n  \n  # Generate a summary of the dataset\n  output$summary <- renderPrint({\n    g = computeNW();\n    \n    printNWSummary(g);\n  })\n  \n  # Server side for data table stats tab\n  # ------------------------------  \n\n  output$statsTable <- renderPrint({\n    g = computeNW();\n    \n    if(input$node == \"\") {    \n      head(g$nodeProps, n = input$obs)\n    }\n    else\n    {\n      head(g$nodeProps[g$nodeProps[,eval(g$nodeProps$node == input$node)],], n = input$obs)      \n    }\n      \n  })\n  \n})\n",
+    "created" : 1412661437264.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2893955600",
+    "id" : "E82F3A4",
+    "lastKnownWriteTime" : 1412683757,
+    "path" : "D:/WorkSpace/R/SNA/src/server.R",
+    "properties" : {
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}
