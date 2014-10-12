@@ -29,6 +29,7 @@ shinyUI(
                   p("Filter based on date range"),
                   dateRangeInput("daterange", label = "", start = NULL, end = NULL),
                   #p(strong("Subset Condition : "), verbatimTextOutput("condition"))
+                  tags$hr(),
                   actionButton("saveGraph", label="Save Graph")
                 ),
                       
@@ -52,12 +53,21 @@ shinyUI(
                         verbatimTextOutput("statsTable")          
                       )                 
              ),         
-      tabPanel("Compare Networks",
+      tabPanel("Community",
                sidebarPanel(
-                 p("Enter network")),
-               sidebarPanel(
-                 p("Enter network"))
+                 h4("Filters"),
+                 tags$hr(),                                          
+                 textInput("com", label ="Enter Community Id", value = "")
+               ),                      
+               mainPanel(
+                verbatimTextOutput("comTop"),
+                tags$hr(),
+                h4("Community plot"),
+                div(plotOutput("comPlot")),
+                tags$hr(),
+                h4("Community Details"),
+                verbatimTextOutput("comDetails")
               )
         )
   )
-
+)

@@ -75,8 +75,34 @@ shinyServer(function(input, output)
     else
     {
       head(g$nodeProps[g$nodeProps[,eval(g$nodeProps$node == input$node)],], n = input$obs)      
-    }
-      
+    }      
+  })
+  
+  
+  # Server side for communities
+  # ------------------------------  
+  output$comTop = renderPrint({
+    g = computeNW();
+    setkey(g$nodeProps, membership);
+    comSummary = g$nodeProps [,list("cnt"=.N), by="membership"];
+    setkey(comSummary, cnt);
+    
+    cat(paste0("\nTop 10 nodes based on membership:\n"));
+    print(tail(comSummary[, list(membership, cnt)], 10));
+  })
+  
+  output$comPlot <- renderPlot({    
+    g = computeNW();    
+    
+    plotCommGraph(g$graph, g$community);    
+    #plot(g$community, g$graph);
+  })
+  
+  output$comDetails = renderPrint ({
+    if(input$com != "") {      
+      subset(g$nodeProps, g$nodeProps$membership == input$com)      
+    }   
+    
   })
   
 })

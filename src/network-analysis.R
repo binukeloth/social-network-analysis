@@ -11,8 +11,8 @@ stringsAsFactors=FALSE
 #   date of event: Optional
 #   other optional columns for subsetting
 
-loadData = function(dataFile, header, sep) {
-  data.table(read.csv(file=dataFile, header=header, sep=sep));
+loadData = function(dataFile, header = TRUE, sep = ',') {
+  data.table(read.csv(file=dataFile, header=header, sep=","));
 }
 
 computeNWProp = function (dataTable, subsetCond) {
@@ -31,29 +31,39 @@ computeNWProp = function (dataTable, subsetCond) {
   
   nw.graph = graph.data.frame(nw.data.sum);
   #set.edge.attribute(nw.graph, "EdgeWeight", index=E(nw.graph), nw.data.sum[3,])
+  nw.com = findCommunity(nw.graph);
+  nw.mem = membership(nw.com);
   
   nw.nodeProps = data.table(node = V(nw.graph)$name, degree = degree(nw.graph), 
-                         betweeness = betweenness(nw.graph, directed=TRUE),
-                         closeness = closeness(nw.graph));
+                        betweeness = betweenness(nw.graph, directed=TRUE),
+                        closeness = closeness(nw.graph),
+                        membership = nw.mem[V(nw.graph)$name]);
   
   
-  nw.edgeProps = data.table(edge=E(nw.graph, ));
+  nw.edgeProps = data.table(edge=E(nw.graph));
   
+ 
   nw.props = list("degDist" = degree.distribution(nw.graph), 
-                  "density" = graph.density(nw.graph, loops=TRUE));
-    
+                  "density" = graph.density(nw.graph, loops=TRUE),
+                  "modularity" = modularity(com));    
   
   
-  # tables();
-  
+  # tables();  
   nw = list("graph"= nw.graph,
                "props" = nw.props,
                "nodeProps"= nw.nodeProps,
-               "edgeProps" = nw.edgeProps);
+               "edgeProps" = nw.edgeProps,
+              "community" = com);
   
   #print.summary.nw(nw);
 
   return(nw);
+}
+
+
+findCommunity = function (graph) {
+  com = fastgreedy.community(as.undirected(graph));
+                             
 }
 
 writeGraph = function(graph, outFile) {
@@ -74,7 +84,24 @@ plotGraph = function(graph) {
   par(mar=rep(0, 4)) #Give the graph lots of room
   
   plot.igraph(graph, layout=layout.auto(graph))
-  par(mar=opar)
+  par(mar=opar);
+ 
+}
+
+plotCommGraph = function(graph, com) {
+  #plot it
+  opar <- par()$mar;
+  par(mar=rep(0, 4)) #Give the graph lots of room
+  
+  plot(com, graph);
+  par(mar=opar);
+  
+  # With communities
+  # V(g$graph)$color <- com$membership + 1
+  # plot(g$graph, vertex.label.dist=1.5)
+  # plot(g, layout=layout.fruchterman.reingold, vertex.size=4,
+  # vertex.label.dist=0.5, vertex.color="red", edge.arrow.size=0.5)
+  # g <- set.graph.attribute(g, "layout", layout.kamada.kawai(g))  
 }
 
 printNWSummary = function(nw, ...) {
