@@ -15,9 +15,8 @@ loadData = function(dataFile, header = TRUE, sep = ',') {
   data.table(read.csv(file=dataFile, header=header, sep=","));
 }
 
-computeNWProp = function (dataTable, subsetCond) {
+genGraph = function(dataTable, subsetCond) {
   setkey(dataTable, "from", "to");  
-  
   
   if(is.null(subsetCond))
   {
@@ -30,6 +29,10 @@ computeNWProp = function (dataTable, subsetCond) {
   }
   
   nw.graph = graph.data.frame(nw.data.sum);
+}
+
+computeNWProp = function (nw.graph) {
+  
   #set.edge.attribute(nw.graph, "EdgeWeight", index=E(nw.graph), nw.data.sum[3,])
   nw.com = findCommunity(nw.graph);
   nw.mem = membership(nw.com);
@@ -40,20 +43,18 @@ computeNWProp = function (dataTable, subsetCond) {
                         membership = nw.mem[V(nw.graph)$name]);
   
   
-  nw.edgeProps = data.table(edge=E(nw.graph));
-  
+  nw.edgeProps = data.table(edge=E(nw.graph));  
  
   nw.props = list("degDist" = degree.distribution(nw.graph), 
                   "density" = graph.density(nw.graph, loops=TRUE),
-                  "modularity" = modularity(com));    
-  
+                  "modularity" = modularity(nw.com));  
   
   # tables();  
   nw = list("graph"= nw.graph,
                "props" = nw.props,
                "nodeProps"= nw.nodeProps,
                "edgeProps" = nw.edgeProps,
-              "community" = com);
+              "community" = nw.com);
   
   #print.summary.nw(nw);
 
@@ -62,18 +63,17 @@ computeNWProp = function (dataTable, subsetCond) {
 
 
 findCommunity = function (graph) {
-  com = fastgreedy.community(as.undirected(graph));
-                             
+  # com = fastgreedy.community(as.undirected(graph));
+  com = edge.betweenness.community(graph);
 }
 
-writeGraph = function(graph, outFile) {
-  
+writeGraph = function(graph, outFile) {  
   write.graph(graph, outFile, format = "gml");
 }
 
-getOutputFile = function(dataFile) {
+getOutputFile = function(dataFile, partNo) {  
   tmp.outputFile = strsplit(dataFile, "\\.")[[1]][1];
-  tmp.outputFile = paste0(tmp.outputFile, ".gml");
+  tmp.outputFile = paste0(tmp.outputFile, partNo, ".gml");
   
   return(tmp.outputFile);
 }
@@ -85,7 +85,6 @@ plotGraph = function(graph) {
   
   plot.igraph(graph, layout=layout.auto(graph))
   par(mar=opar);
- 
 }
 
 plotCommGraph = function(graph, com) {
@@ -133,6 +132,7 @@ printNWSummary = function(nw, ...) {
 # dataFile = "D:/WorkSpace/R/SNA/data/samplecdrs.csv"
 #
 # source("D:/WorkSpace/R/SNA/src/network-analysis.R")
-# g = computeNWProp(loadData(dataFile), quote(call_type == 3))
+# g = computeNWProp(genGraph(loadData(dataFile), NULL))
+# g = computeNWProp(genGraph(loadData(dataFile), quote(call_type == 3)))
 # plotGraph(g$graph)
 # writeGraph(g$graph, getOutputFile(dataFile))

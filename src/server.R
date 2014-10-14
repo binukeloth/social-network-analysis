@@ -7,7 +7,7 @@ source("network-analysis.R");
 
 shinyServer(function(input, output) 
 {
-  # input$file1 will be NULL initially. After the user selects
+  # input$dataFile will be NULL initially. After the user selects
   # and uploads a file, it will be a data frame with 'name',
   # 'size', 'type', and 'datapath' columns. The 'datapath'
   # column will contain the local filenames where the data can
@@ -16,15 +16,24 @@ shinyServer(function(input, output)
   # Server side for load data tab
   # --------------------------
   
-  # Read the requested dataset	
-  
+  # Read the requested dataset  
   datasetInput <- reactive({
-    dataFile <- input$file1
+    dataFile <- input$dataFile
     
     if (is.null(dataFile))
       return(NULL)		
     
     loadData(dataFile$datapath, input$header, input$sep);
+  })
+  
+  # Read the GML file  
+  graphFromFile <- reactive({
+    dataFile <- input$nwFile
+    
+    if (is.null(dataFile))
+      return(NULL)  	
+    
+    read.graph(dataFile$datapath, "gml");
   })
   
   
@@ -34,40 +43,90 @@ shinyServer(function(input, output)
     head(dataset, n = input$obs)
   })
   
-  # Server side for nw stats tab
+  # Server side for nw summary stats tab
   # --------------------------
   
   output$condition = renderText ({ 
     input$cond;
   })
   
-  computeNW = reactive ({    
+  graphFromData = reactive ({    
     dataset = datasetInput();
     
     if (is.null(dataset))
       return(NULL)    
    
-    computeNWProp(dataset, NULL);
+    genGraph(dataset, NULL);    
   })
   
-  output$nwPlot <- renderPlot({    
-    g = computeNW();    
+  graphDetails = reactive({        
+    fromCurrentNW = input$analyze;
     
+    #print(fromCurrentNW);    
+    
+    if(is.null(fromCurrentNW) || (fromCurrentNW == 0)) {      
+      g = graphFromData();
+      
+      if(is.null(g)){
+        return(NULL);
+      }
+        
+      computeNWProp(g);      
+    }
+    else {
+      com.sub = subset(g$nodeProps, g$nodeProps$membership == input$comID)
+      
+      if(nrow(com.sub) > 1) {
+        g = induced.subgraph(g$graph, com.sub$node);
+        computeNWProp(g);
+      }
+      else {
+        print("Not enough nodes to form graph. Please use another community");
+        return(NULL);
+      }
+    }
+    
+#     if(!is.null(input$nwFile))
+#     {
+#       g = graphFromFile();
+#       computeNWProp(g);  
+#     }    
+  })
+  
+  saveGraph = reactive({
+    g = graphDetails();
+    
+    #print(input$save);
+    
+    if(input$save > 0) {
+      nw.file = getOutputFile(input$dataFile$datapath, 1);
+      print(paste0("Saving graph to file - ",nw.file));
+      writeGraph(g$graph, nw.file);
+    }
+  })
+
+  output$nwPlot <- renderPlot({ 
+    if(input$plotGraph == FALSE){
+      return (NULL);
+    }
+      
+    g = graphDetails();    
     plotGraph(g$graph);    
   })
   
   # Generate a summary of the dataset
   output$summary <- renderPrint({
-    g = computeNW();
+    g = graphDetails();
     
     printNWSummary(g);
+    saveGraph();
   })
   
   # Server side for data table stats tab
   # ------------------------------  
 
   output$statsTable <- renderPrint({
-    g = computeNW();
+    g = graphDetails();
     
     if(input$node == "") {    
       head(g$nodeProps, n = input$obs)
@@ -82,7 +141,7 @@ shinyServer(function(input, output)
   # Server side for communities
   # ------------------------------  
   output$comTop = renderPrint({
-    g = computeNW();
+    g = graphDetails();
     setkey(g$nodeProps, membership);
     comSummary = g$nodeProps [,list("cnt"=.N), by="membership"];
     setkey(comSummary, cnt);
@@ -91,18 +150,28 @@ shinyServer(function(input, output)
     print(tail(comSummary[, list(membership, cnt)], 10));
   })
   
-  output$comPlot <- renderPlot({    
-    g = computeNW();    
+  output$comPlot <- renderPlot({
+    
+    if(input$plotGraph == FALSE){
+      return (NULL);
+    }
+    
+    g = graphDetails();    
     
     plotCommGraph(g$graph, g$community);    
     #plot(g$community, g$graph);
   })
   
   output$comDetails = renderPrint ({
-    if(input$com != "") {      
-      subset(g$nodeProps, g$nodeProps$membership == input$com)      
-    }   
+    g = graphDetails(); 
     
+    if(input$com != "") {
+      print(paste0("here ", input$com));
+      subset(g$nodeProps, g$nodeProps$membership == input$com);    
+    }
+    else {
+      g$nodeProps
+    }
   })
   
 })
