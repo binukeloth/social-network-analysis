@@ -1,3 +1,6 @@
+#File upload size to 30MB
+options(shiny.maxRequestSize=30*1024^2, digits=6)
+
 library(shiny)
 library(datasets)
 source("network-analysis.R");
@@ -93,13 +96,12 @@ shinyServer(function(input, output)
 #     }    
   })
   
-  saveGraph = reactive({
-    g = graphDetails();
-    
-    #print(input$save);
+  saveGraph = reactive({        
+    #print(input$save);    
     
     if(input$save > 0) {
-      nw.file = getOutputFile(input$dataFile$datapath, 1);
+      g = graphDetails();
+      nw.file = "D:/WorkSpace/R/SNA/data/grapghout.gml" ;
       print(paste0("Saving graph to file - ",nw.file));
       writeGraph(g$graph, nw.file);
     }
@@ -146,7 +148,7 @@ shinyServer(function(input, output)
     comSummary = g$nodeProps [,list("cnt"=.N), by="membership"];
     setkey(comSummary, cnt);
     
-    cat(paste0("\nTop 10 nodes based on membership:\n"));
+    cat(paste0("\nTop 10 communities:\n"));
     print(tail(comSummary[, list(membership, cnt)], 10));
   })
   

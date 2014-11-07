@@ -1,5 +1,8 @@
 library(shiny)
 
+#File upload size to 30MB
+options(shiny.maxRequestSize=30*1024^2, digits=6)
+
 # Define UI for dataset viewer application
 shinyUI(
   navbarPage(theme = "bootstrap.min.css", "Social Network Analysis",
@@ -9,7 +12,15 @@ shinyUI(
                                   accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),                        
                         checkboxInput('header', 'Header', TRUE),
                         radioButtons('sep', 'Separator', c(Comma=',', Semicolon=';', Tab='\t'), ','),
-                        numericInput("obs", "Observations to view:", 20)                        
+                        numericInput("obs", "Observations to view:", 20),
+                        hr(),
+                        h4("Filters"),                                          
+                        p("Provide the subsetting condition on columns available on the data :"),
+                        textInput("cond", label ="", value = "Enter condition..."),                        
+                        p("Filter based on date range"),
+                        dateRangeInput("daterange", label = "", start = NULL, end = NULL)
+                        #p(strong("Subset Condition : "), verbatimTextOutput("condition"))
+                        
                       ),           
                       
                       # Show a summary of the dataset and an HTML table with the 
@@ -24,14 +35,7 @@ shinyUI(
                                   accept=c('gml', 'Geography Markup Language', '.gml')),
                         hr(),
                         checkboxInput("plotGraph", label = "Plot Graph", value = FALSE),
-                        hr(),
-                        h4("Filters"),                                          
-                        p("Provide the subsetting condition on columns available on the data :"),
-                        textInput("cond", label ="", value = "Enter condition..."),                        
-                        p("Filter based on date range"),
-                        dateRangeInput("daterange", label = "", start = NULL, end = NULL),
-                        #p(strong("Subset Condition : "), verbatimTextOutput("condition"))
-                        hr(),   
+                        hr(),                      
                         textInput("comID", label ="Enter Community Id", value = ""),                          
                         actionButton("analyze", label="Analyze Community"),
                         hr(),
