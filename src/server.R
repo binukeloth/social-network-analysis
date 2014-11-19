@@ -5,6 +5,8 @@ library(shiny)
 library(datasets)
 source("network-analysis.R");
 
+workDir = "D:/WorkSpace/R/SNA/data/";
+
 # Define server logic required 
 # Load data set and to summarize and view the selected dataset
 
@@ -21,27 +23,19 @@ shinyServer(function(input, output)
   
   # Read the requested dataset  
   datasetInput <- reactive({
+    #print("datasetInput invoked");
+    
     dataFile <- input$dataFile
     
     if (is.null(dataFile))
       return(NULL)		
     
     loadData(dataFile$datapath, input$header, input$sep);
-  })
-  
-  # Read the GML file  
-  graphFromFile <- reactive({
-    dataFile <- input$nwFile
-    
-    if (is.null(dataFile))
-      return(NULL)  	
-    
-    read.graph(dataFile$datapath, "gml");
-  })
-  
+  })  
   
   # Show the first "n" observations
   output$view <- renderTable({
+    print("renderTable invoked");
     dataset = datasetInput();    
     head(dataset, n = input$obs)
   })
@@ -53,7 +47,20 @@ shinyServer(function(input, output)
     input$cond;
   })
   
-  graphFromData = reactive ({    
+  # Read the GML file  
+  graphFromFile <- reactive({
+    print("graphFromFile invoked");
+    dataFile = input$nwFile
+      
+    if (is.null(dataFile))
+      return(NULL)    
+      
+    read.graph(dataFile$datapath, "gml");
+  })
+  
+  # Generate graph from raw data
+  graphFromData = reactive ({
+    print("graphFromData invoked");
     dataset = datasetInput();
     
     if (is.null(dataset))
@@ -62,26 +69,30 @@ shinyServer(function(input, output)
     genGraph(dataset, NULL);    
   })
   
-  graphDetails = reactive({        
-    fromCurrentNW = input$analyze;
+  # Generating graph in one of 3 ways
+  #   1. From already loaded file
+  #   2. From network file GML
+  #   3. Subgraph based on community
+  
+  graphDetails = reactive({
     
-    #print(fromCurrentNW);    
+    print("graphDetails invoked");
     
-    if(is.null(fromCurrentNW) || (fromCurrentNW == 0)) {      
-      g = graphFromData();
+    is.subGraph = input$analyze;    
+    if(is.subGraph > 0)
+    {
+      sub.g = graphFromData();
+      if(is.null(sub.g) == TRUE)
+        return(NULL);      
       
-      if(is.null(g)){
-        return(NULL);
-      }
-        
-      computeNWProp(g);      
-    }
-    else {
-      com.sub = subset(g$nodeProps, g$nodeProps$membership == input$comID)
+      nw = findCommunity(computeNWProp(sub.g));
+      
+      nodeProps = data.frame(vertex.attributes(nw$graph));
+      com.sub = nodeProps[nodeProps$Membership == input$analyzeID,];      
       
       if(nrow(com.sub) > 1) {
-        g = induced.subgraph(g$graph, com.sub$node);
-        computeNWProp(g);
+        com.sub.g = induced.subgraph(nw$graph, com.sub$name);        
+        return(computeNWProp(com.sub.g))
       }
       else {
         print("Not enough nodes to form graph. Please use another community");
@@ -89,21 +100,66 @@ shinyServer(function(input, output)
       }
     }
     
-#     if(!is.null(input$nwFile))
-#     {
-#       g = graphFromFile();
-#       computeNWProp(g);  
-#     }    
+    # Graph from file option is populated 
+    # This take priority
+    gf = graphFromFile();    
+    if(is.null(gf) == FALSE)
+      return(computeNWProp(gf));
+    
+    # graph from Data if popultaed from "Data View"
+    gd = graphFromData();
+    if(is.null(gd) == FALSE)
+      return(computeNWProp(gd));
+    
+    return(NULL);
+    
+#     fromCurrentNW = input$analyze;
+#     
+#     #print(fromCurrentNW);    
+#     
+#     if(is.null(fromCurrentNW) || (fromCurrentNW == 0)) {      
+#        
+#     }
+#     else {
+# 
+# #       g = graphDetails();
+# #       nw = findCommunity(g);    
+# #       str(nw);
+# #       str(nw);
+# #       nodeProps = data.frame(vertex.attributes(nw$graph));
+# #       com.sub = nodeProps[nodeProps$Membership == input$comID,];
+#       
+# #       if(nrow(com.sub) > 1) {
+# #         com.sub.g = induced.subgraph(g$graph, com.sub$node);
+# #         computeNWProp(com.sub.g);
+# #       }
+# #       else {
+# #         print("Not enough nodes to form graph. Please use another community");
+# #         return(NULL);
+# #       }
+#     }
   })
   
-  saveGraph = reactive({        
-    #print(input$save);    
+  # Saving graphs and properties
+  saveGraph = reactive({  
+    # TODO - Get the actual file directory
+    if(is.null(input$dataFile) == FALSE){
+      in.file = input$inputFile$datapath;
+    }
+    else if(is.null(input$dataFile) == FALSE){
+      in.file = input$nwFile$datapath;
+    }
     
+    in.file = paste0(workDir, input$dataFile$name);        
+    
+                       
     if(input$save > 0) {
       g = graphDetails();
-      nw.file = "D:/WorkSpace/R/SNA/data/grapghout.gml" ;
-      print(paste0("Saving graph to file - ",nw.file));
-      writeGraph(g$graph, nw.file);
+      out.file = getOutputFile(in.file, input$save) ;
+      print(paste0("Saving graph to file - ",out.file));
+            
+      writeGraph(g$graph, paste0(out.file, '.gml'));
+      writeGraphProps(g$graph, out.file)
     }
   })
 
@@ -118,62 +174,69 @@ shinyServer(function(input, output)
   
   # Generate a summary of the dataset
   output$summary <- renderPrint({
-    g = graphDetails();
+    nw = computeCommunity();
+    printNWSummary(nw);  
     
-    printNWSummary(g);
     saveGraph();
-  })
-  
-  # Server side for data table stats tab
-  # ------------------------------  
-
-  output$statsTable <- renderPrint({
-    g = graphDetails();
-    
-    if(input$node == "") {    
-      head(g$nodeProps, n = input$obs)
-    }
-    else
-    {
-      head(g$nodeProps[g$nodeProps[,eval(g$nodeProps$node == input$node)],], n = input$obs)      
-    }      
   })
   
   
   # Server side for communities
-  # ------------------------------  
-  output$comTop = renderPrint({
+  # -----------------------------
+  computeCommunity = reactive({
+    print("Community Invoked");
     g = graphDetails();
-    setkey(g$nodeProps, membership);
-    comSummary = g$nodeProps [,list("cnt"=.N), by="membership"];
-    setkey(comSummary, cnt);
+    nw = findCommunity(g);    
+  })  
+  
+  output$comTop = renderPrint({    
+    nw = computeCommunity();
     
-    cat(paste0("\nTop 10 communities:\n"));
-    print(tail(comSummary[, list(membership, cnt)], 10));
+    nodeProps = data.table(membership = get.vertex.attribute(nw$graph, "Membership", index=V(nw$graph)));
+    
+    setkey(nodeProps, membership);
+    comSummary = nodeProps [,list(cnt=.N), by="membership"];    
+    propOrder = order(comSummary[, cnt], decreasing = TRUE);    
+    cat(paste0("Top 10 communities based on members:\n"));
+    print(head(comSummary[propOrder,], 10));      
   })
   
-  output$comPlot <- renderPlot({
-    
+  output$comPlot <- renderPlot({    
     if(input$plotGraph == FALSE){
       return (NULL);
     }
     
-    g = graphDetails();    
+    nw = computeCommunity();
     
-    plotCommGraph(g$graph, g$community);    
+    plotCommGraph(nw$graph, nw$community);  
     #plot(g$community, g$graph);
   })
   
   output$comDetails = renderPrint ({
-    g = graphDetails(); 
+    nw = computeCommunity();
     
-    if(input$com != "") {
-      print(paste0("here ", input$com));
-      subset(g$nodeProps, g$nodeProps$membership == input$com);    
+    if(input$comID != "") {
+      nodeProps = data.frame(vertex.attributes(nw$graph));
+      nodeProps[nodeProps$Membership == input$comID,];
     }
     else {
-      g$nodeProps
+      nw$community;
     }
   })
   
+  # Server side for Omega
+  # ---------------------
+  
+  #   output$statsTable <- renderPrint({
+  #     g = graphDetails();
+  #     
+  #     if(input$node == "") {    
+  #       head(g$nodeProps, n = input$obs)
+  #     }
+  #     else
+  #     {
+  #       head(g$nodeProps[g$nodeProps[,eval(g$nodeProps$node == input$node)],], n = input$obs)      
+  #     }      
+  #   })
+ 
 })

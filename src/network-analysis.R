@@ -37,63 +37,55 @@ genGraph = function(dataTable, subsetCond = NULL, metaVertices = NULL) {
 
 computeNWProp = function (nw.graph) {
   
-  #set.edge.attribute(nw.graph, "EdgeWeight", index=E(nw.graph), nw.data.sum[3,])
+  #set.edge.attribute(nw.graph, "EdgeWeight", index=E(nw.graph), nw.data.sum[3,]);
   
-  #nw.com = findCommunity(nw.graph);
-  #nw.mem = membership(nw.com);
+  nw.graph = set.vertex.attribute(nw.graph, name = "Degree",index = V(nw.graph), value = degree(nw.graph));
+  nw.graph = set.vertex.attribute(nw.graph, name = "InDegree",index = V(nw.graph), value = degree(nw.graph, mode="in"));
+  nw.graph = set.vertex.attribute(nw.graph, name = "OutDegree",index = V(nw.graph), value = degree(nw.graph, mode="out"));
+  nw.graph = set.vertex.attribute(nw.graph, name = "Betweenness",index = V(nw.graph), value = betweenness(nw.graph));
+  nw.graph = set.vertex.attribute(nw.graph, name = "Closeness",index = V(nw.graph), value = closeness(nw.graph));
+  nw.graph = set.vertex.attribute(nw.graph, name = "Authority",index = V(nw.graph), value = authority.score(nw.graph)$vector);
+  nw.graph = set.vertex.attribute(nw.graph, name = "Hub",index = V(nw.graph), value = hub.score(nw.graph)$vector);
   
-  nw.graph = set.vertex.attribute(nw.graph, name = "degree",index = V(nw.graph), value = degree(nw.graph));
-  nw.graph = set.vertex.attribute(nw.graph, name = "in-Degree",index = V(nw.graph), value = degree(nw.graph, mode="in"));
-  nw.graph = set.vertex.attribute(nw.graph, name = "Out-Degree",index = V(nw.graph), value = degree(nw.graph, mode="out"));
-  nw.graph = set.vertex.attribute(nw.graph, name = "betweenness",index = V(nw.graph), value = betweenness(nw.graph));
-  nw.graph = set.vertex.attribute(nw.graph, name = "closeness",index = V(nw.graph), value = closeness(nw.graph));
-  nw.graph = set.vertex.attribute(nw.graph, name = "authority",index = V(nw.graph), value = authority.score(nw.graph)$vector);
-  nw.graph = set.vertex.attribute(nw.graph, name = "hub",index = V(nw.graph), value = hub.score(nw.graph)$vector);
-  
-  nw.nodeProps = data.table(node = V(nw.graph)$name,
-                        #company = get.edge.attribute(nw.graph, "comp", E(nw.graph)),
-                        degree = degree(nw.graph),
-                        indegree = degree(nw.graph, mode="in"),
-                        outdegree = degree(nw.graph, mode="out"),
-                        betweeness = betweenness(nw.graph, directed=TRUE),
-                        closeness = closeness(nw.graph),
-                        authority = authority.score(nw.graph)$vector,
-                        hub = hub.score(nw.graph)$vector);
-                        #membership = nw.mem[V(nw.graph)$name]);
-  
-  write.csv(nw.nodeProps, "D:/WorkSpace/R/SNA/data/propOut.csv");
-  
-  
-  nw.edgeProps = data.table(edge=E(nw.graph));
-          # weight = get.edge.attribute(nw.graph, "edgeWeight", E(nw.graph)));
- 
-  nw.props = list("degDist" = degree.distribution(nw.graph), 
-                  "density" = graph.density(nw.graph, loops=TRUE));
-                  #"modularity" = modularity(nw.com));
+  nw.graph = set.graph.attribute(nw.graph, name="DegDist", degree.distribution(nw.graph));
+  nw.graph = set.graph.attribute(nw.graph, name="Density", graph.density(nw.graph, loops=TRUE));
   
   # tables();  
-  nw = list("graph"= nw.graph,
-               "props" = nw.props,
-               "nodeProps"= nw.nodeProps,
-               "edgeProps" = nw.edgeProps);
-               #"community" = nw.com);
-  
+  nw = list("graph"= nw.graph);          #"community" = nw.com);
   #print.summary.nw(nw);
-
   return(nw);
 }
 
 # Trimming leading and traling spaces
 trim <- function (x) gsub("\\s+", "", x);
 
-
-findCommunity = function (graph) {
-  com = fastgreedy.community(as.undirected(graph));
-  # com = edge.betweenness.community(graph);
+# Finding communities
+findCommunity = function (nw, method = "fastgreedy") {
+  
+  if(method == "edge.betweenness") { 
+    nw.com = edge.betweenness.community(nw$graph);
+  }
+  else
+    nw.com = fastgreedy.community(as.undirected(nw$graph));  
+    
+  nw.mem = membership(nw.com);  
+  
+  # Set properties to network, node and graph
+  nw$graph = set.vertex.attribute(nw$graph, name = "Membership",
+                                  index = V(nw$graph), value = nw.mem[V(nw$graph)$name]);
+  nw$graph = set.graph.attribute(nw$graph, name="Modularity", modularity(nw.com));
+  nw$community = nw.com;
+  
+  return(nw);
 }
 
 writeGraph = function(graph, outFile) {  
-  write.graph(graph, outFile, format = "gml");
+  write.graph(graph, outFile, format = "gml");  
+}
+
+writeGraphProps = function(graph, outFileStub) {    
+  write.csv(vertex.attributes(graph), paste0(outFileStub, "-node.csv"));
+  write.csv(edge.attributes(graph), paste0(outFileStub, "-edge.csv"));
 }
 
 writeGraphRgexf = function (nw, outFile) {  
@@ -119,7 +111,7 @@ writeGraphRgexf = function (nw, outFile) {
 
 getOutputFile = function(dataFile, partNo) {  
   tmp.outputFile = strsplit(dataFile, "\\.")[[1]][1];
-  tmp.outputFile = paste0(tmp.outputFile, partNo, ".gml");
+  tmp.outputFile = paste0(tmp.outputFile,"-" ,partNo);
   
   return(tmp.outputFile);
 }
@@ -150,40 +142,24 @@ plotCommGraph = function(graph, com) {
 }
 
 printNWSummary = function(nw, ...) {
-    topn = 5;
-    #cat("\nProperties of the Network:\n");
+    topn = 3;    
     print(nw$graph);
-    cat(paste0("Density = ", nw$props$density, "\n"));
+    cat(paste0("Density = ", get.graph.attribute(nw$graph, "Density"), "\n"));
     #plot(nw$props$degDist);
-        
-    setkey(nw$nodeProps, degree);
-    cat(paste0("\nTop ", topn, " nodes based on Degree:\n"));
-    print(tail(nw$nodeProps[,list(node, degree)], topn));
     
-    setkey(nw$nodeProps, betweeness);
-    cat(paste0("\nTop ", topn, " nodes based on betweeness:\n"));
-    print(tail(nw$nodeProps[,list(node, betweeness)], topn));
+    nodeProps = data.frame(vertex.attributes(nw$graph));
+    props = c("Degree", "InDegree", "OutDegree", "Betweeness", 
+              "Closeness"); #, "Authority", "Hub");
     
-    setkey(nw$nodeProps, closeness);
-    cat(paste0("\nTop ", topn, " nodes based on closeness:\n"));
-    print(tail(nw$nodeProps[, list(node, closeness)], topn));
-    
-    setkey(nw$nodeProps, authority);
-    cat(paste0("\nTop ", topn, " nodes based on authority:\n"));
-    print(tail(nw$nodeProps[, list(node, authority)], topn));
-    
-    setkey(nw$nodeProps, hub);
-    cat(paste0("\nTop ", topn, " nodes based on hub:\n"));
-    print(tail(nw$nodeProps[, list(node, hub)], topn));
+    for(val in props) {
+      propOrder = order(nodeProps[val, ], decreasing = TRUE);
+      cat(paste0("\nTop ", topn, " nodes based on ", val, ":\n"));
+      print(nodeProps[head(propOrder, topn), ]);      
+    }
     
     invisible(nw);
 }
-#     cat(paste0("\nTop ", topn, " nodes based on authority:\n"));
-#     print(tail(nw$nodeProps[, list(node, authority)], topn));
-#     
-#     setkey(nw$nodeProps, hub);
-#     cat(paste0("\nTop ", topn, " nodes based on hub:\n"));
-#     print(tail(nw$nodeProps[, list(node, hub)], topn));
+
 # Usage as application
 # --------------------
 # dataFile = "D:/WorkSpace/R/SNA/data/samplecdrs.csv"
