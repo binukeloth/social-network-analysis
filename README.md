@@ -1,4 +1,4 @@
-social-network-analysis
+Social Network Analysis using Calls (CDR)
 =======================
 
 Project to identify interesting properties from social network.

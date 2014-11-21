@@ -42,8 +42,9 @@ shinyUI(fluidPage(
             actionButton("save", label="Save Graph"),
             hr(),
             textInput("analyzeID", label ="Enter Community Id", value = ""),
-            helpText(paste0("Analyze help user to subset the network based",
-                           "on communities and generated propertied for the subnetwork. Browse 'Network View'")),            
+            helpText(paste0("Analyze subsets current network based ",
+                           "on mentioned community id and generates properties for the subnetwork. ",
+                            "Henceforth all operations happens on this subnetwork ")),            
             actionButton("analyze", label="Analyze Community")  
         ),              
         column(9,                       
@@ -74,9 +75,7 @@ shinyUI(fluidPage(
      )),
     tabPanel("Omega Insights",
         sidebarPanel(
-          h4("Filters"),
-          hr(),                                          
-          textInput("node", label ="Enter Node Id", value = "")
+          h4("Filters")          
         ),                      
         mainPanel(                        
           verbatimTextOutput("statsTable")          

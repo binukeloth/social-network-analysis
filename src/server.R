@@ -53,9 +53,11 @@ shinyServer(function(input, output)
     dataFile = input$nwFile
       
     if (is.null(dataFile))
-      return(NULL)    
+      return(NULL)
+    
+    graphFromGML(dataFile$datapath);
       
-    read.graph(dataFile$datapath, "gml");
+    #read.graph(dataFile$datapath, "gml");
   })
   
   # Generate graph from raw data
@@ -67,6 +69,23 @@ shinyServer(function(input, output)
       return(NULL)    
    
     genGraph(dataset, NULL);    
+  })
+  
+  # Generate primary graph
+  generatePrimary = reactive({
+    
+    # Graph from file option is populated 
+    # This take priority
+    gf = graphFromFile();    
+    if(is.null(gf) == FALSE)
+      return(computeNWProp(gf));
+    
+    # graph from Data if popualted from "Data View"
+    gd = graphFromData();
+    if(is.null(gd) == FALSE)
+      return(computeNWProp(gd));
+    
+    return (NULL);
   })
   
   # Generating graph in one of 3 ways
@@ -81,11 +100,11 @@ shinyServer(function(input, output)
     is.subGraph = input$analyze;    
     if(is.subGraph > 0)
     {
-      sub.g = graphFromData();
+      sub.g = generatePrimary();
       if(is.null(sub.g) == TRUE)
         return(NULL);      
       
-      nw = findCommunity(computeNWProp(sub.g));
+      nw = findCommunity(sub.g);
       
       nodeProps = data.frame(vertex.attributes(nw$graph));
       com.sub = nodeProps[nodeProps$Membership == input$analyzeID,];      
@@ -98,46 +117,10 @@ shinyServer(function(input, output)
         print("Not enough nodes to form graph. Please use another community");
         return(NULL);
       }
-    }
+    }    
     
-    # Graph from file option is populated 
-    # This take priority
-    gf = graphFromFile();    
-    if(is.null(gf) == FALSE)
-      return(computeNWProp(gf));
-    
-    # graph from Data if popultaed from "Data View"
-    gd = graphFromData();
-    if(is.null(gd) == FALSE)
-      return(computeNWProp(gd));
-    
-    return(NULL);
-    
-#     fromCurrentNW = input$analyze;
-#     
-#     #print(fromCurrentNW);    
-#     
-#     if(is.null(fromCurrentNW) || (fromCurrentNW == 0)) {      
-#        
-#     }
-#     else {
-# 
-# #       g = graphDetails();
-# #       nw = findCommunity(g);    
-# #       str(nw);
-# #       str(nw);
-# #       nodeProps = data.frame(vertex.attributes(nw$graph));
-# #       com.sub = nodeProps[nodeProps$Membership == input$comID,];
-#       
-# #       if(nrow(com.sub) > 1) {
-# #         com.sub.g = induced.subgraph(g$graph, com.sub$node);
-# #         computeNWProp(com.sub.g);
-# #       }
-# #       else {
-# #         print("Not enough nodes to form graph. Please use another community");
-# #         return(NULL);
-# #       }
-#     }
+    generatePrimary();
+
   })
   
   # Saving graphs and properties

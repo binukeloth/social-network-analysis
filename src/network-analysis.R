@@ -34,6 +34,13 @@ genGraph = function(dataTable, subsetCond = NULL, metaVertices = NULL) {
   nw.graph = graph.data.frame(d = nw.data.sum, directed=TRUE, vertices=metaVertices);
 }
 
+graphFromData = function(dataFile,  header = TRUE, sep = ',', subsetCond = NULL, metaVertices = NULL) {
+    genGraph(loadData(dataFile, header, sep), subsetCond, metaVertices);
+}
+
+graphFromGML = function(graphFile) {
+  read.graph(graphFile, "gml");
+}
 
 computeNWProp = function (nw.graph) {
   
@@ -51,7 +58,7 @@ computeNWProp = function (nw.graph) {
   nw.graph = set.graph.attribute(nw.graph, name="Density", graph.density(nw.graph, loops=TRUE));
   
   # tables();  
-  nw = list("graph"= nw.graph);          #"community" = nw.com);
+  nw = list("graph"= nw.graph);
   #print.summary.nw(nw);
   return(nw);
 }
@@ -148,11 +155,11 @@ printNWSummary = function(nw, ...) {
     #plot(nw$props$degDist);
     
     nodeProps = data.frame(vertex.attributes(nw$graph));
-    props = c("Degree", "InDegree", "OutDegree", "Betweeness", 
+    props = c("Degree", "InDegree", "OutDegree", "Betweenness", 
               "Closeness"); #, "Authority", "Hub");
     
     for(val in props) {
-      propOrder = order(nodeProps[val, ], decreasing = TRUE);
+      propOrder = order(nodeProps[[val]], decreasing = TRUE);
       cat(paste0("\nTop ", topn, " nodes based on ", val, ":\n"));
       print(nodeProps[head(propOrder, topn), ]);      
     }
