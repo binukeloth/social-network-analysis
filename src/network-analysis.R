@@ -18,17 +18,20 @@ loadData = function(dataFile, header = TRUE, sep = ',') {
   data.table(read.csv(file=dataFile, header=header, sep=",", stringsAsFactors=FALSE));
 }
 
-genGraph = function(dataTable, subsetCond = NULL, metaVertices = NULL) {
-  setkey(dataTable, "from", "to");  
+genGraph = function(dataTable, subsetCol = NULL, subsetVals = NULL, metaVertices = NULL) {    
   
-  if(is.null(subsetCond))
+  if(is.null(subsetCol))
   {
+    setkey(dataTable, "from", "to");
     nw.data.sum = dataTable[ , list("edgeWeight"=.N), by="from,to"];
   }
   else
   {
-    # list("edgeWeight"=.N)
-    nw.data.sum = dataTable[eval(subsetCond), list("edgeWeight"=.N), by="from,to"];
+    # list("edgeWeight"=.N)    
+    filterTable = subset(dataTable, dataTable[[subsetCol]] %in% subsetVals, drop=TRUE);
+    
+    setkey(filterTable, "from", "to");
+    nw.data.sum = filterTable[, list("edgeWeight"=.N), by="from,to"];
   }
   
   nw.graph = graph.data.frame(d = nw.data.sum, directed=TRUE, vertices=metaVertices);
@@ -126,9 +129,27 @@ getOutputFile = function(dataFile, partNo) {
 plotGraph = function(graph) {
   #plot it
   opar <- par()$mar;
+  
+  # Make Graph look better
+  #Edge color and width
+  
+  
+  egam <- (log(E(graph)$edgeWeight)+.4) / max(log(E(graph)$edgeWeight)+.4);
+  E(graph)$color <- rgb(.5, .5, 0, egam)
+  E(graph)$width <- egam;
+  
+  # Vertex label size, text colour and border color
+  V(graph)$label.cex <- 2.2 * V(graph)$Degree / max(V(graph)$Degree)+ .2;
+  V(graph)$label.color <- rgb(0, 0, 0, .8)
+  V(graph)$frame.color <- NA
+  
   par(mar=rep(0, 4)) #Give the graph lots of room
   
-  plot.igraph(graph, layout=layout.auto(graph))
+  plot(graph, layout=layout.auto(graph));
+  
+  # graph is plotted using tkplot - new window opens
+  # tkplot(graph, layout=layout.auto(graph));
+  
   par(mar=opar);
 }
 
@@ -149,11 +170,33 @@ plotCommGraph = function(graph, com) {
 }
 
 printNWSummary = function(nw, ...) {
-    topn = 3;    
-    print(nw$graph);
-    cat(paste0("Density = ", get.graph.attribute(nw$graph, "Density"), "\n"));
-    #plot(nw$props$degDist);
+    topn = 5;
     
+    deg = degree(nw$graph);
+    
+    cat("Network Summary");
+    cat("\n---------------\n");
+    print(nw$graph);
+    cat(paste0("\nNumber of Isolated Nodes = ", sum(deg == 0), "\n"));
+    cat(paste0("Average Degree = ", mean(deg), "\n"));
+    cat(paste0("Density = ", get.graph.attribute(nw$graph, "Density"), "\n"));
+    cat(paste0("Degree Assortivity = ", assortativity.degree(nw$graph, directed = TRUE), "\n"));
+    
+    # Calculate the maximal (weakly or strongly) connected components of a graph
+    comps <- clusters(nw$graph, mode="weak");
+    
+    # component sizes
+    comps.sort <- sort(comps$csize, decreasing=TRUE);
+    
+    # get the biggest component size
+    c1 <- comps.sort[1];
+    
+    cat("\n")
+    cat("Giant component Size:", c1, "\n")
+    cat("Giant component Perc of Whole:", c1/vcount(nw$graph), "\n");
+    
+    cat("\nNode Properties");
+    cat("\n---------------");
     nodeProps = data.frame(vertex.attributes(nw$graph));
     props = c("Degree", "InDegree", "OutDegree", "Betweenness", 
               "Closeness"); #, "Authority", "Hub");

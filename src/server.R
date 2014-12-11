@@ -23,21 +23,49 @@ shinyServer(function(input, output)
   
   # Read the requested dataset  
   datasetInput <- reactive({
-    #print("datasetInput invoked");
+    #print("datasetInput invoked");    
     
-    dataFile <- input$dataFile
+    dataFile <- input$dataFile[1,];
     
-    if (is.null(dataFile))
-      return(NULL)		
+    if (is.null(dataFile) || is.na(dataFile$name))
+      return(NULL);
     
-    loadData(dataFile$datapath, input$header, input$sep);
+    data = loadData(dataFile$datapath, input$header, input$sep);    
+
+    if((nchar(input$column) == 0) || (nchar(input$value) == 0))
+      return (data);
+    
+    cond.values = unlist(strsplit(input$value, split=","));
+    cond.column = input$column;    
+    subset(data, data[[cond.column]] %in% cond.values, drop=TRUE);
   })  
+  
+  metaDataInput <- reactive({    
+    metFile <- input$dataFile[2,];    
+    
+    if (is.null(metFile) || is.na(metFile$name))
+      return(NULL);
+    
+    loadData(metFile$datapath, input$header, input$sep);
+  })
   
   # Show the first "n" observations
   output$view <- renderTable({
-    print("renderTable invoked");
+    # print("renderTable invoked");
+    
     dataset = datasetInput();    
     head(dataset, n = input$obs)
+  })
+  
+  # Show number of observations
+  output$recordcount <- renderText({    
+    
+    dataset = datasetInput();
+    if(is.null(dataset))
+      return('Kindly load your file containing connections');
+      
+    paste0('Number of records : ',  nrow(dataset));
+    
   })
   
   # Server side for nw summary stats tab
@@ -49,7 +77,8 @@ shinyServer(function(input, output)
   
   # Read the GML file  
   graphFromFile <- reactive({
-    print("graphFromFile invoked");
+    # print("graphFromFile invoked");
+    
     dataFile = input$nwFile
       
     if (is.null(dataFile))
@@ -62,13 +91,20 @@ shinyServer(function(input, output)
   
   # Generate graph from raw data
   graphFromData = reactive ({
-    print("graphFromData invoked");
+    # print("graphFromData invoked");
     dataset = datasetInput();
+    metaData = metaDataInput();
+    filter = input$cond;
     
-    if (is.null(dataset))
-      return(NULL)    
-   
-    genGraph(dataset, NULL);    
+    if(is.null(dataset))
+      return(NULL);
+  
+    if((nchar(input$column) == 0) || (nchar(input$value) == 0))      
+      return (genGraph(dataset, metaVertices = metaData));
+    
+    cond.values = unlist(strsplit(input$value, split=","));
+    cond.column = input$column;
+    genGraph(dataset, cond.column, cond.values, metaVertices = metaData);
   })
   
   # Generate primary graph
@@ -95,7 +131,7 @@ shinyServer(function(input, output)
   
   graphDetails = reactive({
     
-    print("graphDetails invoked");
+    # print("graphDetails invoked");
     
     is.subGraph = input$analyze;    
     if(is.subGraph > 0)
@@ -167,7 +203,7 @@ shinyServer(function(input, output)
   # Server side for communities
   # -----------------------------
   computeCommunity = reactive({
-    print("Community Invoked");
+    # print("Community Invoked");
     g = graphDetails();
     nw = findCommunity(g);    
   })  

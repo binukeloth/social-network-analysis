@@ -12,6 +12,7 @@ New Functionalities
   * SNAF2.1 - Support for loading external/input node property file  
   * Handling duplicate vertex
   * Set value = 0 for all node props if it less than 10^-6
+  * Categorize, sort, and filter a responsive grid of items. See Ref 2
 
 Enhancements
 ------------
@@ -21,4 +22,9 @@ Enhancements
     * Edge properties
   * Remove Additional data frame for properties
   * Sort and Display enhancements of output
+  
+References
+----------
+  1) http://www.r-bloggers.com/going-viral-with-rs-igraph-package/
+  2) https://github.com/Vestride/Shuffle
 

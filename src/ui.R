@@ -9,7 +9,7 @@ shinyUI(fluidPage(
      tabPanel("Data View",
         fluidRow(
           column(3,
-            fileInput('dataFile', 'Choose Data File',
+            fileInput('dataFile', 'Choose Data File', multiple = TRUE,
                       accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),                 
             hr(),
             h4("CSV Load Options"),
@@ -19,7 +19,10 @@ shinyUI(fluidPage(
             hr(),
             h4("Data Filters"),                                          
             helpText("Provide the subsetting condition on columns available on the data :"),
-            textInput("cond", label ="", value = "Enter condition..."),                        
+            textInput("column", label ="", value = ""),
+            textInput("value", label ="", value = ""),
+            actionButton("addCond", label="Add Condition"),
+            hr(),   
             helpText("Filter based on date range"),
             dateRangeInput("daterange", label = "", start = NULL, end = NULL)
             #p(strong("Subset Condition : "), verbatimTextOutput("condition"))                
@@ -28,6 +31,7 @@ shinyUI(fluidPage(
         # Requested number of observations
           column(9,
               h4("Data View"),
+              verbatimTextOutput("recordcount"),
               tableOutput("view")
           )
      )),

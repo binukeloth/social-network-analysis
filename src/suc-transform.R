@@ -2,14 +2,8 @@ library(data.table)
 
 stringsAsFactors=FALSE
 
-# Load data
-loadData = function(dataFile, header = TRUE, sep = ',') {
-  data.frame(read.csv(file=dataFile, header=header, sep=",", stringsAsFactors=FALSE));
-}
-
 
 # Transform into from,to rows
-
 # save to file / invoke network analytics
 
 
@@ -40,7 +34,8 @@ prepareData = function (rawData, subex=FALSE)
         # print(paste0("Processing for ", rawData[i, "Name"]));
         attendee[[tolower(trim(rawData[i, "Name"]))]] = c(lrtrim(rawData[i, "Name"]), rawData[i, "Company"]) ;
       }
-      else if (col == "Company") {        
+      else if (col == "Company" || col == "Department" || col == "Email" || col == "Function"
+               || col == "Sub.Function") {        
       }      
       else {      
         
@@ -48,10 +43,10 @@ prepareData = function (rawData, subex=FALSE)
         
         for(val in values) {
           if(!is.na(val)) {          
-            to = append(to, tolower(trim(val)));
-            from = append(from, tolower(trim(rawData[i, "Name"])));
+            to = append(to, lrtrim(val));
+            from = append(from, lrtrim(rawData[i, "Name"]));
             
-            attendee[[tolower(trim(val))]] = c(lrtrim(val), col);
+            #attendee[[tolower(trim(val))]] = c(lrtrim(val), col);
           }
         }       
       }        
@@ -61,8 +56,8 @@ prepareData = function (rawData, subex=FALSE)
   df = data.frame(from, to, stringsAsFactors=FALSE);
   
   # print(head((names)));  
-  write.csv(attendee, 'D:/WorkSpace/R/SNA/data/all-names.csv');
-  write.csv(df, 'D:/WorkSpace/R/SNA/data/suc-conn.csv');  
+  #write.csv(attendee, 'D:/WorkSpace/R/SNA/data/all-names.csv');
+  write.csv(df, 'D:/WorkSpace/R/SNA/data/sub-sna.csv');  
 }
   
 lrtrim <- function (x) gsub("^\\s+|\\s+$", "", x)
